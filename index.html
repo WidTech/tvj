@@ -1,98 +1,140 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>HLS Fullscreen Player</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      background: black;
-      overflow: hidden;
-    }
-    #overlay {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.85);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2rem;
-      z-index: 10;
-      cursor: pointer;
-    }
-    video {
-      width: 100%;
-      height: 100%;
-      background: black;
-    }
-  </style>
-</head>
-<body>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HLS Fullscreen Player</title>
+<style>
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: black;
+    overflow: hidden;
+  }
+  #overlay {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    z-index: 10;
+    cursor: default;
+  }
+  video {
+    width: 100%;
+    height: 100%;
+    background: black;
+  }
+</style>
+<div id="overlay">Press any key to start</div>
+<video id="video" controls playsinline></video>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+  const video = document.getElementById("video");
+  const overlay = document.getElementById("overlay");
+  const streamUrl =
+    "https://rjrtvjlocal-ioriver-cdn.encoders.immergo.tv/2/streamPlaylist.m3u8";
 
-  <div id="overlay">Tap to Start</div>
-  <video id="video" controls playsinline></video>
+  function enterFullscreen(el) {
+    if (el.requestFullscreen) return el.requestFullscreen();
+    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
+    if (el.msRequestFullscreen) return el.msRequestFullscreen();
+    console.log("Fullscreen not supported");
+  }
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script>
-    const video = document.getElementById('video');
-    const overlay = document.getElementById('overlay');
-    const streamUrl = 'https://rjrtvjlocal-ioriver-cdn.encoders.immergo.tv/2/streamPlaylist.m3u8';
-
-    function enterFullscreen(el) {
-      if (el.requestFullscreen) return el.requestFullscreen();
-      if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
-      if (el.msRequestFullscreen) return el.msRequestFullscreen();
-      console.log("Fullscreen not supported");
-    }
-
-    function initPlayer() {
-      if (Hls.isSupported()) {
-        const hls = new Hls();
-        hls.loadSource(streamUrl);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          console.log("HLS manifest parsed");
-          video.play().then(() => {
-            console.log("Playback started");
-          }).catch(err => {
-            console.error("Playback error:", err);
-          });
-        });
-
-        hls.on(Hls.Events.ERROR, function (event, data) {
-          console.error("HLS.js error:", data);
-          alert("Stream error: " + data.details);
-        });
-
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        console.log("Native HLS supported");
-        video.src = streamUrl;
-        video.addEventListener('loadedmetadata', () => {
-          video.play().then(() => {
-            console.log("Native playback started");
-          }).catch(err => {
-            console.error("Native playback error:", err);
-          });
-        });
-      } else {
-        alert('Your browser does not support HLS playback.');
-      }
-    }
-
-    overlay.addEventListener('click', () => {
-      overlay.style.display = 'none';
-      initPlayer();
-
-      enterFullscreen(video).catch(err => {
-        console.warn("Fullscreen request failed:", err);
+  function initPlayer() {
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(streamUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log("HLS manifest parsed");
+        video.play().catch((err) => console.error("Playback error:", err));
       });
-    });
-  </script>
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error("HLS.js error:", data);
+        alert("Stream error: " + data.details);
+      });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      console.log("Native HLS supported");
+      video.src = streamUrl;
+      video.addEventListener("loadedmetadata", () => {
+        video.play().catch((err) => console.error("Native playback error:", err));
+      });
+    } else {
+      alert("Your browser does not support HLS playback.");
+    }
+  }
 
-</body>
-</html>
+  let started = false;
+
+  // Start playback and fullscreen on any key press (once)
+  function startPlayback() {
+    if (started) return;
+    started = true;
+    overlay.style.display = "none";
+    initPlayer();
+    enterFullscreen(video).catch((err) => {
+      console.warn("Fullscreen request failed:", err);
+    });
+  }
+
+  document.addEventListener("keydown", (event) => {
+    // Start video on first key press
+    if (!started) {
+      startPlayback();
+    }
+
+    const step = 10; // seconds
+    const volStep = 0.1; // volume change
+    const key = event.key || event.code || event.keyCode;
+
+    switch (key) {
+      case "ArrowLeft":
+      case "Left":
+      case 37:
+        event.preventDefault();
+        video.currentTime = Math.max(0, video.currentTime - step);
+        break;
+
+      case "ArrowRight":
+      case "Right":
+      case 39:
+        event.preventDefault();
+        video.currentTime = Math.min(video.duration, video.currentTime + step);
+        break;
+
+      case "ArrowUp":
+      case "Up":
+      case 38:
+        event.preventDefault();
+        video.volume = Math.min(1, video.volume + volStep);
+        break;
+
+      case "ArrowDown":
+      case "Down":
+      case 40:
+        event.preventDefault();
+        video.volume = Math.max(0, video.volume - volStep);
+        break;
+
+      case "Enter":
+      case "Select":
+      case 13:
+      case " ":
+      case 32:
+        event.preventDefault();
+        if (video.paused) video.play();
+        else video.pause();
+        break;
+    }
+  });
+
+  // Optional: also start playback on overlay click (in case mobile users tap)
+  overlay.addEventListener("click", () => {
+    startPlayback();
+  });
+</script>
